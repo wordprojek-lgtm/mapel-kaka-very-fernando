@@ -7,33 +7,36 @@ include '../template/sidebar.php';
 include '../template/navbar.php';
 
 // Filter tanggal
-$tgl_awal  = isset($_GET['tgl_awal'])  ? $_GET['tgl_awal']  : date('Y-m-01');
-$tgl_akhir = isset($_GET['tgl_akhir']) ? $_GET['tgl_akhir'] : date('Y-m-d');
+$tgl_awal     = isset($_GET['tgl_awal'])        ? $_GET['tgl_awal']        : date('Y-m-01');
+$tgl_akhir    = isset($_GET['tgl_akhir'])       ? $_GET['tgl_akhir']       : date('Y-m-d');
 $filter_jenis = isset($_GET['jenis_kendaraan']) ? mysqli_real_escape_string($conn, $_GET['jenis_kendaraan']) : '';
 
-// Bangun WHERE
-$where = "WHERE status='keluar' AND DATE(waktu_keluar) BETWEEN '$tgl_awal' AND '$tgl_akhir'";
+// Bangun WHERE — jenis_kendaraan dari tb_kendaraan (alias k)
+$where = "WHERE t.status='keluar' AND DATE(t.waktu_keluar) BETWEEN '$tgl_awal' AND '$tgl_akhir'";
 if ($filter_jenis) {
-    $where .= " AND jenis_kendaraan = '$filter_jenis'";
+    $where .= " AND k.jenis_kendaraan = '$filter_jenis'";
 }
+
+// Base JOIN
+$join = "FROM tb_transaksi t LEFT JOIN tb_kendaraan k ON t.id_kendaraan = k.id_kendaraan";
 
 // Pagination
 $per_halaman = 10;
 $halaman     = isset($_GET['halaman']) ? intval($_GET['halaman']) : 1;
 $offset      = ($halaman - 1) * $per_halaman;
 
-$total_query   = mysqli_query($conn, "SELECT COUNT(*) as total FROM tb_transaksi $where");
+$total_query   = mysqli_query($conn, "SELECT COUNT(*) as total $join $where");
 $total_row     = $total_query ? mysqli_fetch_assoc($total_query)['total'] : 0;
 $total_halaman = ceil($total_row / $per_halaman);
 
-$query = mysqli_query($conn, "SELECT * FROM tb_transaksi $where ORDER BY waktu_keluar DESC LIMIT $per_halaman OFFSET $offset");
+$query = mysqli_query($conn, "SELECT t.*, k.plat_nomor, k.jenis_kendaraan $join $where ORDER BY t.waktu_keluar DESC LIMIT $per_halaman OFFSET $offset");
 
 // Hitung total pendapatan (semua data, bukan hanya halaman ini)
-$total_query2    = mysqli_query($conn, "SELECT SUM(biaya_total) as grand_total FROM tb_transaksi $where");
-$grand_total     = $total_query2 ? mysqli_fetch_assoc($total_query2)['grand_total'] : 0;
+$total_query2 = mysqli_query($conn, "SELECT SUM(t.biaya_total) as grand_total $join $where");
+$grand_total  = $total_query2 ? mysqli_fetch_assoc($total_query2)['grand_total'] : 0;
 
-// Ambil daftar jenis kendaraan untuk filter
-$jenis_query = mysqli_query($conn, "SELECT DISTINCT jenis_kendaraan FROM tb_transaksi ORDER BY jenis_kendaraan");
+// Ambil daftar jenis kendaraan untuk filter (dari tb_kendaraan)
+$jenis_query = mysqli_query($conn, "SELECT DISTINCT jenis_kendaraan FROM tb_kendaraan ORDER BY jenis_kendaraan");
 
 // Bangun query string untuk export (tanpa halaman)
 $export_params = http_build_query([
@@ -167,7 +170,6 @@ $export_params = http_build_query([
               $no = $offset + 1;
               if ($query && mysqli_num_rows($query) > 0):
                 while ($row = mysqli_fetch_assoc($query)):
-                  // Hitung durasi
                   $awal   = new DateTime($row['waktu_masuk']);
                   $akhir  = new DateTime($row['waktu_keluar']);
                   $diff   = $awal->diff($akhir);
@@ -176,13 +178,13 @@ $export_params = http_build_query([
               ?>
               <tr>
                 <td class="ps-4"><?= $no++ ?></td>
-                <td><span class="badge bg-secondary">#<?= $row['id_transaksi'] ?></span></td>
-                <td><span class="badge bg-dark fs-6"><?= strtoupper($row['no_plat']) ?></span></td>
+                <td><span class="badge bg-secondary">#<?= $row['id_parkir'] ?></span></td>
+                <td><span class="badge bg-dark fs-6"><?= strtoupper($row['plat_nomor']) ?></span></td>
                 <td>
                   <?php
                   $icon = ['motor'=>'🏍️','mobil'=>'🚗','truk'=>'🚛','bus'=>'🚌','sepeda'=>'🚲'];
-                  $ic = $icon[strtolower($row['jenis_kendaraan'])] ?? '🚘';
-                  echo $ic . ' ' . htmlspecialchars($row['jenis_kendaraan']);
+                  $ic   = $icon[strtolower($row['jenis_kendaraan'] ?? '')] ?? '🚘';
+                  echo $ic . ' ' . htmlspecialchars($row['jenis_kendaraan'] ?? '-');
                   ?>
                 </td>
                 <td><?= date('d/m/Y H:i', strtotime($row['waktu_masuk'])) ?></td>
@@ -200,7 +202,7 @@ $export_params = http_build_query([
               </tr>
               <?php endif; ?>
             </tbody>
-            <?php if ($query && mysqli_num_rows($query) > 0): ?>
+            <?php if ($total_row > 0): ?>
             <tfoot>
               <tr class="table-light fw-bold">
                 <td colspan="7" class="text-end pe-3">TOTAL PENDAPATAN :</td>

@@ -3,41 +3,39 @@ include '../config/koneksi.php';
 include '../auth/cek_login.php';
 include '../config/log.php';
 
-$error  = [];
+$error = [];
 
 // ── Proses Simpan ──────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan'])) {
 
-    $no_plat      = strtoupper(trim(mysqli_real_escape_string($conn, $_POST['no_plat'])));
-    $id_kendaraan = intval($_POST['id_kendaraan'] ?? 0); // dari hidden field setelah lookup
-    $id_tarif     = intval($_POST['id_tarif']);
-    $id_area      = intval($_POST['id_area']);
+    $plat_nomor   = strtoupper(trim(mysqli_real_escape_string($conn, $_POST['plat_nomor'])));
+    $id_tarif     = intval($_POST['id_tarif'] ?? 0);
+    $id_area      = intval($_POST['id_area']  ?? 0);
     $id_user      = $_SESSION['id_user'] ?? null;
     $waktu_masuk  = date('Y-m-d H:i:s');
-    $status       = 'masuk';
 
     // --- Validasi ---
-    if (empty($no_plat))  $error[] = "Nomor plat wajib diisi.";
-    if ($id_tarif <= 0)   $error[] = "Jenis kendaraan / tarif wajib dipilih.";
-    if ($id_area  <= 0)   $error[] = "Area parkir wajib dipilih.";
+    if (empty($plat_nomor)) $error[] = "Nomor plat wajib diisi.";
+    if ($id_tarif <= 0)     $error[] = "Jenis kendaraan / tarif wajib dipilih.";
+    if ($id_area  <= 0)     $error[] = "Area parkir wajib dipilih.";
 
-    // Cek apakah no_plat sedang parkir (status masuk)
+    // Cek apakah plat_nomor sedang parkir (status masuk)
     if (empty($error)) {
         $cek = mysqli_fetch_assoc(mysqli_query($conn,
-            "SELECT p.id_parkir FROM tb_area_parkir
+            "SELECT p.id_parkir FROM tb_transaksi p
              JOIN tb_kendaraan k ON p.id_kendaraan = k.id_kendaraan
-             WHERE k.no_plat = '$no_plat' AND p.status = 'masuk'
+             WHERE k.plat_nomor = '$plat_nomor' AND p.status = 'masuk'
              LIMIT 1"
         ));
         if ($cek) {
-            $error[] = "Kendaraan dengan plat <strong>$no_plat</strong> sedang dalam parkir. Proses keluar dulu.";
+            $error[] = "Kendaraan dengan plat <strong>$plat_nomor</strong> sedang dalam parkir. Proses keluar dulu.";
         }
     }
 
     if (empty($error)) {
         // Ambil / buat id_kendaraan
         $kendaraan = mysqli_fetch_assoc(mysqli_query($conn,
-            "SELECT id_kendaraan FROM tb_kendaraan WHERE no_plat = '$no_plat' LIMIT 1"
+            "SELECT id_kendaraan FROM tb_kendaraan WHERE plat_nomor = '$plat_nomor' LIMIT 1"
         ));
 
         if ($kendaraan) {
@@ -50,23 +48,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan'])) {
             $jenis = mysqli_real_escape_string($conn, $tarif_data['jenis_kendaraan'] ?? 'lainnya');
 
             mysqli_query($conn,
-                "INSERT INTO tb_kendaraan (no_plat, jenis_kendaraan) VALUES ('$no_plat', '$jenis')"
+                "INSERT INTO tb_kendaraan (plat_nomor, jenis_kendaraan) VALUES ('$plat_nomor', '$jenis')"
             );
             $id_kendaraan = mysqli_insert_id($conn);
         }
 
-        // Insert ke tb_parkir
+        // Insert ke tb_transaksi
         $stmt = mysqli_prepare($conn,
-            "INSERT INTO tb_parkir (id_kendaraan, waktu_masuk, id_tarif, status, id_user, id_area)
+            "INSERT INTO tb_transaksi (id_kendaraan, waktu_masuk, id_tarif, status, id_user, id_area)
              VALUES (?, ?, ?, 'masuk', ?, ?)"
         );
         mysqli_stmt_bind_param($stmt, "issii", $id_kendaraan, $waktu_masuk, $id_tarif, $id_user, $id_area);
 
         if (mysqli_stmt_execute($stmt)) {
-            $id_parkir_baru = mysqli_insert_id($conn);
             mysqli_stmt_close($stmt);
-            logAktivitas($conn, "Kendaraan masuk: $no_plat");
-            header("Location: index.php?pesan=Kendaraan $no_plat berhasil dicatat masuk&type=success");
+            logAktivitas($conn, "Kendaraan masuk: $plat_nomor");
+            header("Location: index.php?pesan=Kendaraan $plat_nomor berhasil dicatat masuk&type=success");
             exit;
         } else {
             $error[] = "Gagal menyimpan: " . mysqli_stmt_error($stmt);
@@ -77,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan'])) {
 
 // ── Ambil data untuk form ──────────────────────────────────────────────────────
 $tarif_list = mysqli_query($conn, "SELECT * FROM tb_tarif ORDER BY jenis_kendaraan");
-$area_list  = mysqli_query($conn, "SELECT * FROM tb_area_parkir  ORDER BY nama_area_parkir");
+$area_list  = mysqli_query($conn, "SELECT * FROM tb_area_parkir ORDER BY nama_area");
 
 include '../template/header.php';
 include '../template/sidebar.php';
@@ -121,9 +118,9 @@ include '../template/navbar.php';
           <!-- No. Plat -->
           <div class="col-md-6">
             <label class="form-label fw-semibold">Nomor Plat Kendaraan <span class="text-danger">*</span></label>
-            <input type="text" name="no_plat" class="form-control text-uppercase fw-bold"
+            <input type="text" name="plat_nomor" class="form-control text-uppercase fw-bold"
                    placeholder="Contoh: B 1234 ABC"
-                   value="<?= htmlspecialchars($_POST['no_plat'] ?? '') ?>"
+                   value="<?= htmlspecialchars($_POST['plat_nomor'] ?? '') ?>"
                    required autofocus>
             <div class="form-text">Huruf otomatis menjadi kapital.</div>
           </div>

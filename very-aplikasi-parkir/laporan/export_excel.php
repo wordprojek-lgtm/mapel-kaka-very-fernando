@@ -7,14 +7,20 @@ $tgl_awal     = isset($_GET['tgl_awal'])        ? $_GET['tgl_awal']        : dat
 $tgl_akhir    = isset($_GET['tgl_akhir'])       ? $_GET['tgl_akhir']       : date('Y-m-d');
 $filter_jenis = isset($_GET['jenis_kendaraan']) ? mysqli_real_escape_string($conn, $_GET['jenis_kendaraan']) : '';
 
-// Bangun WHERE
-$where = "WHERE status='keluar' AND DATE(waktu_keluar) BETWEEN '$tgl_awal' AND '$tgl_akhir'";
+// Bangun WHERE — jenis_kendaraan sekarang dari tb_kendaraan (alias k)
+$where = "WHERE t.status='keluar' AND DATE(t.waktu_keluar) BETWEEN '$tgl_awal' AND '$tgl_akhir'";
 if ($filter_jenis) {
-    $where .= " AND jenis_kendaraan = '$filter_jenis'";
+    $where .= " AND k.jenis_kendaraan = '$filter_jenis'";
 }
 
-// Query semua data (tanpa pagination untuk export)
-$query = mysqli_query($conn, "SELECT * FROM tb_transaksi $where ORDER BY waktu_keluar DESC");
+// Query dengan JOIN ke tb_kendaraan untuk mendapatkan plat_nomor & jenis_kendaraan
+$sql = "SELECT t.*, k.plat_nomor, k.jenis_kendaraan
+        FROM tb_transaksi t
+        LEFT JOIN tb_kendaraan k ON t.id_kendaraan = k.id_kendaraan
+        $where
+        ORDER BY t.waktu_keluar DESC";
+
+$query = mysqli_query($conn, $sql);
 
 // Header download Excel
 header("Content-Type: application/vnd-ms-excel");
@@ -70,9 +76,9 @@ header("Expires: 0");
     ?>
     <tr>
       <td align="center"><?= $no++ ?></td>
-      <td align="center">#<?= $row['id_transaksi'] ?></td>
-      <td align="center"><?= strtoupper($row['no_plat']) ?></td>
-      <td><?= htmlspecialchars($row['jenis_kendaraan']) ?></td>
+      <td align="center">#<?= $row['id_parkir'] ?></td>
+      <td align="center"><?= strtoupper($row['plat_nomor']) ?></td>
+      <td><?= htmlspecialchars($row['jenis_kendaraan'] ?? '-') ?></td>
       <td><?= date('d/m/Y H:i', strtotime($row['waktu_masuk'])) ?></td>
       <td><?= date('d/m/Y H:i', strtotime($row['waktu_keluar'])) ?></td>
       <td align="center"><?= $durasi ?> Jam</td>

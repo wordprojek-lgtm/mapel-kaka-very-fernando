@@ -10,12 +10,12 @@ $data = null;
 
 if ($id > 0) {
     $stmt = mysqli_prepare($conn,
-        "SELECT p.*, k.no_plat, k.jenis_kendaraan,
+        "SELECT p.*, k.plat_nomor, k.jenis_kendaraan,
                 t.tarif_per_jam, a.nama_area
-         FROM tb_area_parkir
-         JOIN tb_kendaraan k ON p.id_kendaraan = k.id_kendaraan
-         JOIN tb_tarif     t ON p.id_tarif     = t.id_tarif
-         LEFT JOIN tb_area_parkir ON p.id_area      = a.id_area
+         FROM tb_transaksi p
+         JOIN tb_kendaraan    k ON p.id_kendaraan = k.id_kendaraan
+         JOIN tb_tarif        t ON p.id_tarif     = t.id_tarif
+         LEFT JOIN tb_area_parkir a ON p.id_area  = a.id_area
          WHERE p.id_parkir = ? AND p.status = 'masuk'
          LIMIT 1"
     );
@@ -25,14 +25,13 @@ if ($id > 0) {
     mysqli_stmt_close($stmt);
 }
 
-// Hitung estimasi biaya real-time (belum final, hanya tampilan)
-$estimasi_biaya = 0;
+// Hitung estimasi biaya real-time
+$estimasi_biaya  = 0;
 $estimasi_durasi = 0;
 if ($data) {
     $waktu_masuk  = new DateTime($data['waktu_masuk']);
     $waktu_keluar = new DateTime();
     $selisih      = $waktu_masuk->diff($waktu_keluar);
-    // Durasi minimal 1 jam, pembulatan ke atas
     $total_menit  = ($selisih->days * 24 * 60) + ($selisih->h * 60) + $selisih->i;
     $estimasi_durasi = max(1, ceil($total_menit / 60));
     $estimasi_biaya  = $estimasi_durasi * $data['tarif_per_jam'];
@@ -78,7 +77,7 @@ if ($data) {
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Nomor Plat</label>
                 <input type="text" class="form-control fw-bold text-uppercase"
-                       value="<?= htmlspecialchars($data['no_plat']) ?>" readonly>
+                       value="<?= htmlspecialchars($data['plat_nomor']) ?>" readonly>
               </div>
 
               <div class="col-md-6">
@@ -167,7 +166,6 @@ if ($data) {
 </div>
 
 <script>
-// Update jam keluar real-time setiap detik
 setInterval(function() {
     const now = new Date();
     const pad = n => String(n).padStart(2,'0');

@@ -2,7 +2,6 @@
 include '../config/koneksi.php';
 include '../auth/cek_login.php';
 
-// use HARUS di paling atas, sebelum logika apapun
 $autoload_path = '../vendor/autoload.php';
 if (file_exists($autoload_path)) {
     require_once $autoload_path;
@@ -13,15 +12,27 @@ $tgl_awal     = isset($_GET['tgl_awal'])        ? $_GET['tgl_awal']        : dat
 $tgl_akhir    = isset($_GET['tgl_akhir'])       ? $_GET['tgl_akhir']       : date('Y-m-d');
 $filter_jenis = isset($_GET['jenis_kendaraan']) ? mysqli_real_escape_string($conn, $_GET['jenis_kendaraan']) : '';
 
-// Bangun WHERE
-$where = "WHERE status='keluar' AND DATE(waktu_keluar) BETWEEN '$tgl_awal' AND '$tgl_akhir'";
+// Bangun WHERE — jenis_kendaraan sekarang dari tb_kendaraan (alias k)
+$where = "WHERE t.status='keluar' AND DATE(t.waktu_keluar) BETWEEN '$tgl_awal' AND '$tgl_akhir'";
 if ($filter_jenis) {
-    $where .= " AND jenis_kendaraan = '$filter_jenis'";
+    $where .= " AND k.jenis_kendaraan = '$filter_jenis'";
 }
 
-// Query semua data
-$query     = mysqli_query($conn, "SELECT * FROM tb_transaksi $where ORDER BY waktu_keluar DESC");
-$total_q   = mysqli_query($conn, "SELECT SUM(biaya_total) as grand_total FROM tb_transaksi $where");
+// Query dengan JOIN ke tb_kendaraan
+$sql = "SELECT t.*, k.plat_nomor, k.jenis_kendaraan
+        FROM tb_transaksi t
+        LEFT JOIN tb_kendaraan k ON t.id_kendaraan = k.id_kendaraan
+        $where
+        ORDER BY t.waktu_keluar DESC";
+
+$query = mysqli_query($conn, $sql);
+
+// Query grand total
+$sql_total = "SELECT SUM(t.biaya_total) as grand_total
+              FROM tb_transaksi t
+              LEFT JOIN tb_kendaraan k ON t.id_kendaraan = k.id_kendaraan
+              $where";
+$total_q     = mysqli_query($conn, $sql_total);
 $grand_total = $total_q ? mysqli_fetch_assoc($total_q)['grand_total'] : 0;
 
 // Bangun HTML untuk PDF
@@ -93,9 +104,9 @@ ob_start();
       ?>
       <tr>
         <td class="text-center"><?= $no++ ?></td>
-        <td class="text-center">#<?= $row['id_transaksi'] ?></td>
-        <td class="text-center"><span class="badge-plat"><?= strtoupper($row['no_plat']) ?></span></td>
-        <td><?= htmlspecialchars($row['jenis_kendaraan']) ?></td>
+        <td class="text-center">#<?= $row['id_parkir'] ?></td>
+        <td class="text-center"><span class="badge-plat"><?= strtoupper($row['plat_nomor']) ?></span></td>
+        <td><?= htmlspecialchars($row['jenis_kendaraan'] ?? '-') ?></td>
         <td class="text-center"><?= date('d/m/Y H:i', strtotime($row['waktu_masuk'])) ?></td>
         <td class="text-center"><?= date('d/m/Y H:i', strtotime($row['waktu_keluar'])) ?></td>
         <td class="text-center"><?= $durasi ?> Jam</td>
@@ -122,7 +133,7 @@ ob_start();
 
   <div class="footer">
     <div class="footer-sign">
-      <p class="footer-info">Balikpapan, <?= date('d/m/Y') ?></p>
+      <p class="footer-info">Tanjung selor, <?= date('d/m/Y') ?></p>
       <br><br><br>
       <p>( ................................. )</p>
       <p><strong>Petugas Parkir</strong></p>
@@ -134,21 +145,17 @@ ob_start();
 <?php
 $html = ob_get_clean();
 
-// Cek apakah dompdf tersedia
 if (file_exists($autoload_path)) {
-    // Gunakan DOMPDF - use di sini sudah aman karena require sudah dipanggil di atas
-    $options = new \Dompdf\Options();          // ✅ pakai namespace langsung, tanpa use
+    $options = new \Dompdf\Options();
     $options->set('isRemoteEnabled', true);
     $options->set('defaultFont', 'DejaVu Sans');
 
-    $dompdf = new \Dompdf\Dompdf($options);    // ✅ pakai namespace langsung, tanpa use
+    $dompdf = new \Dompdf\Dompdf($options);
     $dompdf->loadHtml($html, 'UTF-8');
     $dompdf->setPaper('A4', 'landscape');
     $dompdf->render();
     $dompdf->stream("Laporan_Parkir_" . date('d-m-Y') . ".pdf", ["Attachment" => 0]);
-
 } else {
-    // Fallback jika dompdf belum diinstall: tampil HTML lalu print otomatis
     echo $html;
     echo '<script>window.onload = function(){ window.print(); }</script>';
 }

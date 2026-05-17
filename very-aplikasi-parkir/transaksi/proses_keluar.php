@@ -16,10 +16,10 @@ if ($id_parkir <= 0) {
     exit;
 }
 
-// Ambil data parkir yang masih berstatus 'masuk'
+// Ambil data transaksi yang masih berstatus 'masuk'
 $stmt = mysqli_prepare($conn,
-    "SELECT p.*, k.no_plat, t.tarif_per_jam
-     FROM tb_area_parkir    p
+    "SELECT p.*, k.plat_nomor, t.tarif_per_jam
+     FROM tb_transaksi p
      JOIN tb_kendaraan k ON p.id_kendaraan = k.id_kendaraan
      JOIN tb_tarif     t ON p.id_tarif     = t.id_tarif
      WHERE p.id_parkir = ? AND p.status = 'masuk'
@@ -46,9 +46,9 @@ $total_menit  = ($selisih->days * 24 * 60) + ($selisih->h * 60) + $selisih->i;
 $durasi_jam   = max(1, (int) ceil($total_menit / 60));
 $biaya_total  = $durasi_jam * $data['tarif_per_jam'];
 
-// ── Update tb_parkir ───────────────────────────────────────────────────────────
+// ── Update tb_transaksi ────────────────────────────────────────────────────────
 $upd = mysqli_prepare($conn,
-    "UPDATE tb_parkir
+    "UPDATE tb_transaksi
      SET waktu_keluar = ?,
          durasi_jam   = ?,
          biaya_total  = ?,
@@ -59,8 +59,7 @@ mysqli_stmt_bind_param($upd, "siid", $waktu_keluar, $durasi_jam, $biaya_total, $
 
 if (mysqli_stmt_execute($upd) && mysqli_stmt_affected_rows($upd) > 0) {
     mysqli_stmt_close($upd);
-    logAktivitas($conn, "Kendaraan keluar: {$data['no_plat']}, biaya: Rp " . number_format($biaya_total));
-    // Redirect ke halaman struk
+    logAktivitas($conn, "Kendaraan keluar: {$data['plat_nomor']}, biaya: Rp " . number_format($biaya_total));
     header("Location: struk.php?id=$id_parkir");
     exit;
 } else {

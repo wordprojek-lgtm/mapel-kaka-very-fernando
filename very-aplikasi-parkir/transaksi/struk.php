@@ -10,14 +10,14 @@ if ($id <= 0) {
 }
 
 $stmt = mysqli_prepare($conn,
-    "SELECT p.*, k.no_plat, k.jenis_kendaraan,
+    "SELECT p.*, k.plat_nomor, k.jenis_kendaraan,
             t.tarif_per_jam, a.nama_area,
-            u.nama_user
-     FROM tb_area_parkir    p
-     JOIN tb_kendaraan k ON p.id_kendaraan = k.id_kendaraan
-     JOIN tb_tarif     t ON p.id_tarif     = t.id_tarif
-     LEFT JOIN tb_area a ON p.id_area      = a.id_area
-     LEFT JOIN tb_user u ON p.id_user      = u.id_user
+            u.nama_lengkap
+     FROM tb_transaksi p
+     JOIN tb_kendaraan      k ON p.id_kendaraan = k.id_kendaraan
+     JOIN tb_tarif          t ON p.id_tarif     = t.id_tarif
+     LEFT JOIN tb_area_parkir a ON p.id_area    = a.id_area
+     LEFT JOIN tb_user        u ON p.id_user    = u.id_user
      WHERE p.id_parkir = ?
      LIMIT 1"
 );
@@ -36,7 +36,7 @@ if (!$data) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Struk Parkir – <?= htmlspecialchars(strtoupper($data['no_plat'])) ?></title>
+  <title>Struk Parkir – <?= htmlspecialchars(strtoupper($data['plat_nomor'])) ?></title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -50,7 +50,6 @@ if (!$data) {
       color: #000;
     }
 
-    /* Struk wrapper */
     .struk {
       background: #fff;
       width: 320px;
@@ -78,7 +77,6 @@ if (!$data) {
 
     .footer { text-align: center; font-size: 10px; margin-top: 10px; line-height: 1.8; }
 
-    /* Status badge */
     .badge-status {
       display: inline-block;
       padding: 2px 10px;
@@ -91,7 +89,6 @@ if (!$data) {
       border: 1px solid <?= $data['status'] === 'keluar' ? '#c3e6cb' : '#ffc107' ?>;
     }
 
-    /* Tombol aksi (tidak ikut cetak) */
     .action-bar {
       display: flex;
       gap: 10px;
@@ -140,11 +137,11 @@ if (!$data) {
   <!-- INFO KENDARAAN -->
   <table class="detail">
     <tr><td>ID Parkir</td><td>: #<?= str_pad($data['id_parkir'], 6, '0', STR_PAD_LEFT) ?></td></tr>
-    <tr><td>No. Plat</td><td>: <strong><?= htmlspecialchars(strtoupper($data['no_plat'])) ?></strong></td></tr>
+    <tr><td>No. Plat</td><td>: <strong><?= htmlspecialchars(strtoupper($data['plat_nomor'])) ?></strong></td></tr>
     <tr><td>Jenis</td>    <td>: <?= htmlspecialchars(ucfirst($data['jenis_kendaraan'])) ?></td></tr>
     <tr><td>Area</td>     <td>: <?= htmlspecialchars($data['nama_area'] ?? '-') ?></td></tr>
-    <?php if ($data['nama_user']): ?>
-    <tr><td>Petugas</td>  <td>: <?= htmlspecialchars($data['nama_user']) ?></td></tr>
+    <?php if (!empty($data['nama_lengkap'])): ?>
+    <tr><td>Petugas</td>  <td>: <?= htmlspecialchars($data['nama_lengkap']) ?></td></tr>
     <?php endif; ?>
   </table>
 
@@ -200,7 +197,6 @@ if (!$data) {
 </div>
 
 <script>
-  // Auto print saat dibuka pertama kali (hanya jika status sudah keluar)
   <?php if ($data['status'] === 'keluar'): ?>
   window.onload = function() { window.print(); };
   <?php endif; ?>

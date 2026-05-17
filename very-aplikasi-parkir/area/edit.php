@@ -6,15 +6,14 @@ include '../config/log.php';
 
 onlyAdmin();
 
-// Ambil & validasi ID
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if ($id <= 0) {
     header("Location: index.php?pesan=ID tidak valid!&type=danger");
     exit;
 }
 
-// Ambil data area
-$q = mysqli_query($conn, "SELECT * FROM tb_area_parkir WHERE d_area = $id");
+// ✅ FIXED: kolom id_area (bukan d_area)
+$q = mysqli_query($conn, "SELECT * FROM tb_area_parkir WHERE id_area = $id");
 if (!$q || mysqli_num_rows($q) == 0) {
     header("Location: index.php?pesan=Data area tidak ditemukan!&type=danger");
     exit;
@@ -28,25 +27,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $kapasitas = intval($_POST['kapasitas']);
     $terisi    = intval($_POST['terisi']);
 
-    // Validasi
     if (empty($nama_area))    $error[] = "Nama area wajib diisi.";
     if ($kapasitas <= 0)      $error[] = "Kapasitas harus lebih dari 0.";
     if ($terisi < 0)          $error[] = "Terisi tidak boleh negatif.";
     if ($terisi > $kapasitas) $error[] = "Jumlah terisi tidak boleh melebihi kapasitas.";
 
-    if (!empty($nama_area)) {
-        $cek = mysqli_query($conn, "SELECT d_area FROM tb_area_parkir WHERE nama_area = '$nama_area' AND d_area != $id");
-        if (mysqli_num_rows($cek) > 0) {
+    if (empty($error) && !empty($nama_area)) {
+        // ✅ FIXED: kolom id_area (bukan d_area)
+        $cek = mysqli_query($conn, "SELECT id_area FROM tb_area_parkir 
+                                    WHERE nama_area = '$nama_area' AND id_area != $id");
+        if ($cek && mysqli_num_rows($cek) > 0) {
             $error[] = "Nama area <strong>$nama_area</strong> sudah digunakan area lain!";
         }
     }
 
     if (empty($error)) {
+        // ✅ FIXED: kolom id_area (bukan d_area)
         $sql = "UPDATE tb_area_parkir SET
                     nama_area = '$nama_area',
                     kapasitas = '$kapasitas',
                     terisi    = '$terisi'
-                WHERE d_area = $id";
+                WHERE id_area = $id";
 
         if (mysqli_query($conn, $sql)) {
             logAktivitas($conn, "Mengubah area parkir: $nama_area");
@@ -57,7 +58,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Jika error, tampilkan nilai POST
     $data['nama_area'] = $_POST['nama_area'];
     $data['kapasitas'] = $_POST['kapasitas'];
     $data['terisi']    = $_POST['terisi'];
@@ -85,7 +85,7 @@ include '../template/navbar.php';
           </ol>
         </nav>
 
-        <!-- INFO KAPASITAS REALTIME -->
+        <!-- INFO KAPASITAS -->
         <div class="card border-0 shadow-sm rounded-4 mb-3">
           <div class="card-body py-3 px-4">
             <div class="d-flex justify-content-between align-items-center mb-1">
@@ -93,7 +93,8 @@ include '../template/navbar.php';
               <span class="badge bg-<?= $bar_color ?>"><?= $persen ?>% Terisi</span>
             </div>
             <div class="progress" style="height:10px">
-              <div class="progress-bar bg-<?= $bar_color ?> rounded" style="width:<?= $persen ?>%"></div>
+              <div class="progress-bar bg-<?= $bar_color ?> rounded"
+                   style="width:<?= $persen ?>%"></div>
             </div>
             <div class="d-flex justify-content-between mt-1">
               <small class="text-muted">Terisi: <strong><?= $terisi ?></strong> slot</small>
@@ -127,18 +128,21 @@ include '../template/navbar.php';
             <form method="POST" action="edit.php?id=<?= $id ?>">
 
               <div class="mb-3">
-                <label class="form-label fw-semibold">Nama Area <span class="text-danger">*</span></label>
+                <label class="form-label fw-semibold">
+                  Nama Area <span class="text-danger">*</span>
+                </label>
                 <input type="text" name="nama_area" class="form-control"
                        value="<?= htmlspecialchars($data['nama_area']) ?>" required>
               </div>
 
               <div class="row g-3 mb-4">
                 <div class="col-md-6">
-                  <label class="form-label fw-semibold">Kapasitas (Slot) <span class="text-danger">*</span></label>
+                  <label class="form-label fw-semibold">
+                    Kapasitas (Slot) <span class="text-danger">*</span>
+                  </label>
                   <div class="input-group">
                     <input type="number" name="kapasitas" class="form-control"
-                           min="1"
-                           value="<?= htmlspecialchars($data['kapasitas']) ?>" required>
+                           min="1" value="<?= htmlspecialchars($data['kapasitas']) ?>" required>
                     <span class="input-group-text">slot</span>
                   </div>
                 </div>
@@ -146,8 +150,7 @@ include '../template/navbar.php';
                   <label class="form-label fw-semibold">Terisi</label>
                   <div class="input-group">
                     <input type="number" name="terisi" class="form-control"
-                           min="0"
-                           value="<?= htmlspecialchars($data['terisi']) ?>">
+                           min="0" value="<?= htmlspecialchars($data['terisi']) ?>">
                     <span class="input-group-text">slot</span>
                   </div>
                 </div>

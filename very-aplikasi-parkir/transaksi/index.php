@@ -12,7 +12,7 @@ $pesan_type = isset($_GET['type'])  ? $_GET['type']  : 'info';
 // Pencarian
 $cari  = isset($_GET['cari']) ? mysqli_real_escape_string($conn, $_GET['cari']) : '';
 $where = $cari
-    ? "WHERE k.no_plat LIKE '%$cari%' OR k.jenis_kendaraan LIKE '%$cari%'"
+    ? "WHERE k.plat_nomor LIKE '%$cari%' OR k.jenis_kendaraan LIKE '%$cari%'"
     : '';
 
 // Pagination
@@ -20,37 +20,29 @@ $per_halaman   = 10;
 $halaman       = isset($_GET['halaman']) ? max(1, intval($_GET['halaman'])) : 1;
 $offset        = ($halaman - 1) * $per_halaman;
 
-// ── Cek tabel mana saja yang tersedia ─────────────────────────────────────────
-$ada_area = mysqli_num_rows(mysqli_query($conn, "SHOW TABLES LIKE 'tb_area_parkir'"))  > 0;
-$ada_user = mysqli_num_rows(mysqli_query($conn, "SHOW TABLES LIKE 'tb_user'"))  > 0;
-
-// Susun kolom & JOIN sesuai tabel yang ada
-$select_extra = '';
-$join_extra   = '';
-if ($ada_area) { $select_extra .= ', a.nama_area';  $join_extra .= " LEFT JOIN tb_area a ON p.id_area = a.id_area"; }
-if ($ada_user) { $select_extra .= ', u.nama_user';  $join_extra .= " LEFT JOIN tb_user u ON p.id_user = u.id_user"; }
-
 // Query total untuk pagination
 $q_total = mysqli_query($conn,
     "SELECT COUNT(*) AS total
-     FROM tb_area_parkir
+     FROM tb_transaksi p
      JOIN tb_kendaraan k ON p.id_kendaraan = k.id_kendaraan
      $where"
 );
 if (!$q_total) {
     die("<div class='alert alert-danger m-4'><strong>Error database:</strong> "
         . mysqli_error($conn)
-        . "<br><small>Pastikan tabel <code>tb_parkir</code> dan <code>tb_kendaraan</code> sudah ada.</small></div>");
+        . "<br><small>Pastikan tabel <code>tb_transaksi</code> dan <code>tb_kendaraan</code> sudah ada.</small></div>");
 }
 $total_row     = mysqli_fetch_assoc($q_total)['total'] ?? 0;
 $total_halaman = $total_row > 0 ? ceil($total_row / $per_halaman) : 1;
 
 // Query utama
-$sql_utama = "SELECT p.*, k.no_plat, k.jenis_kendaraan, t.tarif_per_jam $select_extra
-              FROM tb_area_parkir
-              JOIN tb_kendaraan k ON p.id_kendaraan = k.id_kendaraan
-              JOIN tb_tarif     t ON p.id_tarif     = t.id_tarif
-              $join_extra
+$sql_utama = "SELECT p.*, k.plat_nomor, k.jenis_kendaraan, t.tarif_per_jam,
+                     a.nama_area, u.nama_lengkap
+              FROM tb_transaksi p
+              JOIN tb_kendaraan      k ON p.id_kendaraan = k.id_kendaraan
+              JOIN tb_tarif          t ON p.id_tarif     = t.id_tarif
+              LEFT JOIN tb_area_parkir a ON p.id_area    = a.id_area
+              LEFT JOIN tb_user        u ON p.id_user    = u.id_user
               $where
               ORDER BY p.id_parkir DESC
               LIMIT $per_halaman OFFSET $offset";
@@ -126,9 +118,9 @@ if (!$result) {
             ?>
             <tr>
               <td class="ps-4"><?= $no++ ?></td>
-              <td><strong><?= htmlspecialchars(strtoupper($row['no_plat'])) ?></strong></td>
+              <td><strong><?= htmlspecialchars(strtoupper($row['plat_nomor'])) ?></strong></td>
               <td><?= $ic ?> <?= htmlspecialchars($row['jenis_kendaraan']) ?></td>
-              <td><?= htmlspecialchars($row['nama_area'] ?? ($ada_area ? '-' : 'N/A')) ?></td>
+              <td><?= htmlspecialchars($row['nama_area'] ?? '-') ?></td>
               <td><?= date('d/m/Y H:i', strtotime($row['waktu_masuk'])) ?></td>
               <td><?= $row['waktu_keluar'] ? date('d/m/Y H:i', strtotime($row['waktu_keluar'])) : '<span class="text-muted">-</span>' ?></td>
               <td>

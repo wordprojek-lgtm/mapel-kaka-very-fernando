@@ -9,18 +9,27 @@ include '../template/header.php';
 include '../template/sidebar.php';
 include '../template/navbar.php';
 
-
 // ============================================================
-// PROSES HAPUS (digabung langsung di index.php)
+// PROSES HAPUS
 // ============================================================
 if (isset($_GET['aksi']) && $_GET['aksi'] === 'hapus') {
     $hapus_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
     if ($hapus_id > 0) {
+
+        // Ambil plat nomor untuk log
+        $ambil = mysqli_fetch_assoc(mysqli_query($conn, "SELECT plat_nomor FROM tb_kendaraan WHERE id_kendaraan = $hapus_id"));
+        $plat  = $ambil['plat_nomor'] ?? "ID $hapus_id";
+
+        // Hapus transaksi terkait dulu (cascade manual)
+        mysqli_query($conn, "DELETE FROM tb_transaksi WHERE id_kendaraan = $hapus_id");
+
+        // Baru hapus kendaraannya
         $sql_hapus = mysqli_query($conn, "DELETE FROM tb_kendaraan WHERE id_kendaraan = $hapus_id");
         if ($sql_hapus) {
-            header("Location: index.php?pesan=Data kendaraan berhasil dihapus!&type=success");
+            logAktivitas($conn, "Menghapus data kendaraan: $plat beserta transaksinya");
+            header("Location: index.php?pesan=Data kendaraan $plat berhasil dihapus!&type=success");
         } else {
-            header("Location: index.php?pesan=Gagal menghapus data!&type=danger");
+            header("Location: index.php?pesan=Gagal menghapus data: " . mysqli_error($conn) . "&type=danger");
         }
         exit;
     } else {
@@ -159,10 +168,10 @@ $stat_mobil = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as jml FRO
                      class="btn btn-sm btn-warning text-white" title="Edit">
                     <i class="fas fa-edit"></i>
                   </a>
-                  <!-- Tombol Hapus (aksi digabung di index.php) -->
+                  <!-- Tombol Hapus -->
                   <a href="index.php?aksi=hapus&id=<?= $row['id_kendaraan'] ?>"
                      class="btn btn-sm btn-danger" title="Hapus"
-                     onclick="return confirm('Yakin ingin menghapus kendaraan <?= htmlspecialchars($row['plat_nomor'], ENT_QUOTES) ?>?')">
+                     onclick="return confirm('Yakin ingin menghapus kendaraan <?= htmlspecialchars($row['plat_nomor'], ENT_QUOTES) ?>?\nSemua transaksi terkait juga akan ikut terhapus!')">
                     <i class="fas fa-trash"></i>
                   </a>
                 </td>

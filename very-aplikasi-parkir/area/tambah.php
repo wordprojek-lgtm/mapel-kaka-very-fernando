@@ -13,14 +13,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $kapasitas = intval($_POST['kapasitas']);
     $terisi    = intval($_POST['terisi']);
 
-    if (empty($nama_area)) $error[] = "Nama area wajib diisi.";
-    if ($kapasitas <= 0)   $error[] = "Kapasitas harus lebih dari 0.";
-    if ($terisi < 0)       $error[] = "Terisi tidak boleh negatif.";
+    if (empty($nama_area))    $error[] = "Nama area wajib diisi.";
+    if ($kapasitas <= 0)      $error[] = "Kapasitas harus lebih dari 0.";
+    if ($terisi < 0)          $error[] = "Terisi tidak boleh negatif.";
     if ($terisi > $kapasitas) $error[] = "Jumlah terisi tidak boleh melebihi kapasitas.";
 
-    if (!empty($nama_area)) {
-        $cek = mysqli_query($conn, "SELECT d_area FROM tb_area_parkir WHERE nama_area = '$nama_area'");
-        if (mysqli_num_rows($cek) > 0) {
+    if (empty($error) && !empty($nama_area)) {
+        // ✅ FIXED: kolom id_area (bukan d_area)
+        $cek = mysqli_query($conn, "SELECT id_area FROM tb_area_parkir WHERE nama_area = '$nama_area'");
+        if ($cek && mysqli_num_rows($cek) > 0) {
             $error[] = "Nama area <strong>$nama_area</strong> sudah terdaftar!";
         }
     }
@@ -80,7 +81,9 @@ include '../template/navbar.php';
             <form method="POST" action="tambah.php">
 
               <div class="mb-3">
-                <label class="form-label fw-semibold">Nama Area <span class="text-danger">*</span></label>
+                <label class="form-label fw-semibold">
+                  Nama Area <span class="text-danger">*</span>
+                </label>
                 <input type="text" name="nama_area" class="form-control"
                        placeholder="Contoh: Area A, Lantai 1, Parkir Utara"
                        value="<?= val('nama_area') ?>" required>
@@ -89,10 +92,13 @@ include '../template/navbar.php';
 
               <div class="row g-3 mb-4">
                 <div class="col-md-6">
-                  <label class="form-label fw-semibold">Kapasitas (Slot) <span class="text-danger">*</span></label>
+                  <label class="form-label fw-semibold">
+                    Kapasitas (Slot) <span class="text-danger">*</span>
+                  </label>
                   <div class="input-group">
                     <input type="number" name="kapasitas" class="form-control"
-                           min="1" placeholder="0" value="<?= val('kapasitas') ?>" required>
+                           min="1" placeholder="0"
+                           value="<?= val('kapasitas') ?>" required>
                     <span class="input-group-text">slot</span>
                   </div>
                 </div>
@@ -100,7 +106,8 @@ include '../template/navbar.php';
                   <label class="form-label fw-semibold">Terisi</label>
                   <div class="input-group">
                     <input type="number" name="terisi" class="form-control"
-                           min="0" placeholder="0" value="<?= val('terisi', '0') ?>">
+                           min="0" placeholder="0"
+                           value="<?= val('terisi', '0') ?>">
                     <span class="input-group-text">slot</span>
                   </div>
                 </div>

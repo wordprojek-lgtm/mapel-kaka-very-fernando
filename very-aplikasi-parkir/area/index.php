@@ -25,7 +25,7 @@ $query = mysqli_query($conn, "
     SELECT *
     FROM tb_area_parkir
     $where
-    ORDER BY d_area DESC
+    ORDER BY id_area DESC
     LIMIT $per_halaman OFFSET $offset
 ");
 
@@ -46,7 +46,9 @@ include '../template/navbar.php';
     <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <h4 class="fw-bold mb-0"><i class="bi bi-map me-2 text-primary"></i>Manajemen Area Parkir</h4>
+        <h4 class="fw-bold mb-0">
+          <i class="bi bi-map me-2 text-primary"></i>Manajemen Area Parkir
+        </h4>
         <small class="text-muted">Kelola data area dan lokasi parkir</small>
       </div>
       <a href="tambah.php" class="btn btn-primary">
@@ -57,6 +59,7 @@ include '../template/navbar.php';
     <!-- NOTIFIKASI -->
     <?php if ($pesan): ?>
       <div class="alert alert-<?= htmlspecialchars($pesan_type) ?> alert-dismissible fade show">
+        <i class="bi bi-info-circle me-2"></i>
         <?= htmlspecialchars($pesan) ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
       </div>
@@ -97,14 +100,20 @@ include '../template/navbar.php';
     <!-- TABEL -->
     <div class="card shadow-sm border-0 rounded-4">
       <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center rounded-top-4">
-        <span class="fw-semibold">Daftar Area Parkir</span>
+        <span class="fw-semibold">
+          <i class="bi bi-list-ul me-1 text-primary"></i> Daftar Area Parkir
+        </span>
         <form method="GET" class="d-flex gap-2">
           <input type="text" name="cari" class="form-control form-control-sm"
                  placeholder="Cari nama area..."
                  value="<?= htmlspecialchars($cari) ?>" style="width:260px">
-          <button class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i></button>
+          <button class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-search"></i>
+          </button>
           <?php if ($cari): ?>
-            <a href="index.php" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+            <a href="index.php" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-x-lg"></i>
+            </a>
           <?php endif; ?>
         </form>
       </div>
@@ -119,7 +128,7 @@ include '../template/navbar.php';
                 <th>Kapasitas</th>
                 <th>Terisi</th>
                 <th>Sisa Slot</th>
-                <th class="text-center" style="width:120px">Aksi</th>
+                <th class="text-center" style="width:130px">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -135,12 +144,17 @@ include '../template/navbar.php';
               ?>
               <tr>
                 <td class="ps-4"><?= $no++ ?></td>
-                <td><span class="fw-semibold"><?= htmlspecialchars($row['nama_area']) ?></span></td>
+                <td>
+                  <span class="fw-semibold">
+                    <?= htmlspecialchars($row['nama_area']) ?>
+                  </span>
+                </td>
                 <td><?= number_format($kapasitas) ?> slot</td>
                 <td>
                   <?= $terisi ?> slot
                   <div class="progress mt-1" style="height:5px;width:80px">
-                    <div class="progress-bar bg-<?= $bar_color ?>" style="width:<?= $persen ?>%"></div>
+                    <div class="progress-bar bg-<?= $bar_color ?>"
+                         style="width:<?= $persen ?>%"></div>
                   </div>
                   <small class="text-muted"><?= $persen ?>%</small>
                 </td>
@@ -150,10 +164,12 @@ include '../template/navbar.php';
                   </span>
                 </td>
                 <td class="text-center">
-                  <a href="edit.php?id=<?= $row['d_area'] ?>" class="btn btn-sm btn-warning" title="Edit">
+                  <!-- ✅ FIXED: id_area (bukan d_area) -->
+                  <a href="edit.php?id=<?= $row['id_area'] ?>"
+                     class="btn btn-sm btn-warning" title="Edit">
                     <i class="bi bi-pencil"></i>
                   </a>
-                  <a href="hapus.php?id=<?= $row['d_area'] ?>"
+                  <a href="hapus.php?id=<?= $row['id_area'] ?>"
                      class="btn btn-sm btn-danger" title="Hapus"
                      onclick="return confirm('Yakin ingin menghapus area <?= htmlspecialchars($row['nama_area']) ?>?')">
                     <i class="bi bi-trash"></i>
@@ -164,7 +180,9 @@ include '../template/navbar.php';
               <tr>
                 <td colspan="6" class="text-center text-muted py-5">
                   <i class="bi bi-map fs-1 d-block mb-2 opacity-25"></i>
-                  <?= $cari ? "Tidak ada area dengan kata kunci \"" . htmlspecialchars($cari) . "\"." : "Belum ada data area parkir." ?>
+                  <?= $cari
+                    ? "Tidak ada area dengan kata kunci \"" . htmlspecialchars($cari) . "\"."
+                    : "Belum ada data area parkir." ?>
                 </td>
               </tr>
               <?php endif; ?>
@@ -177,15 +195,39 @@ include '../template/navbar.php';
       <?php if ($total_halaman > 1): ?>
       <div class="card-footer bg-white d-flex justify-content-between align-items-center rounded-bottom-4">
         <small class="text-muted">
-          Menampilkan <?= $offset + 1 ?>–<?= min($offset + $per_halaman, $total_row) ?> dari <?= $total_row ?> data
+          Menampilkan
+          <strong><?= $offset + 1 ?></strong>–<strong><?= min($offset + $per_halaman, $total_row) ?></strong>
+          dari <strong><?= $total_row ?></strong> data
         </small>
         <nav>
           <ul class="pagination pagination-sm mb-0">
+
+            <!-- Tombol Prev -->
+            <li class="page-item <?= $halaman <= 1 ? 'disabled' : '' ?>">
+              <a class="page-link"
+                 href="?halaman=<?= $halaman - 1 ?>&cari=<?= urlencode($cari) ?>">
+                <i class="bi bi-chevron-left"></i>
+              </a>
+            </li>
+
+            <!-- Nomor Halaman -->
             <?php for ($i = 1; $i <= $total_halaman; $i++): ?>
             <li class="page-item <?= $i == $halaman ? 'active' : '' ?>">
-              <a class="page-link" href="?halaman=<?= $i ?>&cari=<?= urlencode($cari) ?>"><?= $i ?></a>
+              <a class="page-link"
+                 href="?halaman=<?= $i ?>&cari=<?= urlencode($cari) ?>">
+                <?= $i ?>
+              </a>
             </li>
             <?php endfor; ?>
+
+            <!-- Tombol Next -->
+            <li class="page-item <?= $halaman >= $total_halaman ? 'disabled' : '' ?>">
+              <a class="page-link"
+                 href="?halaman=<?= $halaman + 1 ?>&cari=<?= urlencode($cari) ?>">
+                <i class="bi bi-chevron-right"></i>
+              </a>
+            </li>
+
           </ul>
         </nav>
       </div>
